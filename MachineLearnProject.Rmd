@@ -1,0 +1,169 @@
+---
+title: "Machine Learning HAR Dataset Project"
+author: "DataVoyager"
+
+output: html_document
+---
+# Introduction
+
+This report uses the Weight Lifting Exercise Dataset. The goal of this project is to predict the manner in which the participants did the exercise. We were to create a report describing 1) how we built the model, 2) how we used cross validation, 3)what we think the expected out of sample error is, and 4) why we made the choices we did.
+
+# Getting the Data
+
+To start, I downloaded the data and read the data into R.
+```{r}
+setwd("~/Data Science Specialization/Machine Learning/PeerReviewProject")
+
+```
+
+
+```{r eval=FALSE}
+#url for project files
+trainingdata<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testdata<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+#download training data
+download.file(trainingdata, destfile="traindata.csv")
+#download test data
+download.file(testdata, destfile="testdata.csv")
+
+
+```
+
+```{r}
+#read dataframes
+traindata<-read.csv("traindata.csv")
+testdata<-read.csv("testdata.csv")
+```
+
+
+
+# Exploratory Data Analysis
+
+Next, I briefly studied the data to get a better idea of the type of information the variables contained.
+
+```{r eval=FALSE}
+#Exploratory Data Analysis
+dim(traindata)
+names(traindata)
+str(traindata)
+```
+```{r}
+head(traindata)
+```
+
+
+# Building the Model
+
+During my exploratory data analysis I noticed that many of the variables were either empty or full of NAs. Therefore, I decided to exclude all these variables while building the model because I didn't think it made sense to include variables in the model that did not have any data.
+
+In order to build a prediction model, I used the createDataPartition () function from the caret package to split the training dataset into a _training_ and _test_ set. This gave me a way to cross validate the results of the fitted model.
+
+
+```{r}
+#Data Splitting
+library(caret)
+set.seed(4223)
+inTrain<-createDataPartition(y=traindata$classe, p=0.75, list=FALSE)
+training<-traindata[inTrain,]
+testing<-traindata[-inTrain,]
+
+```
+ 
+
+##Cross Validation
+
+In order to be able to cross validate the model, I used the _training_ partition from the training dataset when building the random forest model. The function I used for building the random forest was the randomForest() function from the randomForest package.
+
+```{r}
+#Fit a model: random forest
+set.seed(4223)
+library ("randomForest")
+
+#define the variables to use in the model
+varmod<-classe~roll_belt + pitch_belt+ yaw_belt+total_accel_belt+gyros_belt_x+gyros_belt_y +          
+gyros_belt_z+accel_belt_x+accel_belt_y +accel_belt_z+magnet_belt_x+magnet_belt_y +        
+magnet_belt_z +roll_arm +pitch_arm+yaw_arm +              
+total_accel_arm +gyros_arm_x +            
+                      gyros_arm_y  + gyros_arm_z +         
+                      accel_arm_x  + accel_arm_y  +          
+                      accel_arm_z  + magnet_arm_x  +          
+                      magnet_arm_y  + magnet_arm_z  +          
+                      roll_dumbbell +         
+                      pitch_dumbbell  + yaw_dumbbell +           
+                      total_accel_dumbbell  + gyros_dumbbell_y   +    
+                      gyros_dumbbell_z +accel_dumbbell_x +       
+                      accel_dumbbell_y +accel_dumbbell_z  +      
+                      magnet_dumbbell_x +magnet_dumbbell_y +      
+                      magnet_dumbbell_z +roll_forearm +           
+                      pitch_forearm +yaw_forearm +      
+                      total_accel_forearm   +          
+                      gyros_forearm_x +gyros_forearm_y +        
+                      gyros_forearm_z +accel_forearm_x  +       
+                      accel_forearm_y +accel_forearm_z   +      
+                      magnet_forearm_x +magnet_forearm_y  +      
+                      magnet_forearm_z 
+#fit the model
+modfit<-randomForest(varmod,data=training)
+```
+
+To cross validate the model, I conducted a prediction using the predict() function from the caret package on the reserved _test_ data from the the traindata data set.
+
+```{r}
+#Predict on new samples (the reserved "testing" data from traindata)
+predictions<-predict(modfit, newdata=testing)
+
+table(predictions, testing$classe)
+```
+
+#Expected Out of Sample Error
+
+Once I built the model using the _training_ partition from the traindata, and once I tested the model using the _testing_ partition from the traindata, I checked the model in order to determine the expected out of sample error. 
+
+```{r}
+#check the fit of the model:Confusion Matrix
+confusionMatrix(predictions, testing$classe)
+```
+
+The expected accuracy of the model is 99.4% and the expected out of sample error is 0.6%
+
+Now I can fit the final model using the entire traindata set.
+
+```{r}
+#Build a new model with all the traindata
+allmodfit<-randomForest(varmod,data=traindata)
+
+```
+
+#Predictions
+With the final model constructed, I was able to predict the _classe_ of each of the 20 cases in the testdata dataset.
+
+```{r}
+#Predict with testdata
+#this function was used
+#but it's not needed for the purpose of this report
+# pml_write_files=function(x){
+#         n=length(x)
+#         for(i in 1:n){
+#                 filename=paste0("problem_id_",i,".txt")
+#                 write.table(x[i],file=filename,quote=FALSE,col.names=FALSE)
+#         }
+# }
+
+# setwd("~/Data Science Specialization/Machine Learning/PeerReviewProject/AnswerFolder")
+
+
+
+answers<-predict(allmodfit, testdata,type="class")
+answers
+#this function was used
+#but it's not needed for the purpose of this report
+##pml_write_files(answers)
+
+```
+
+
+# Sources
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3DjapWXbl
